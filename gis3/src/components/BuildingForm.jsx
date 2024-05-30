@@ -20,12 +20,13 @@ const SelectControl = ({ name, value, onChange, placeholder, options }) => (
 );
 
 const BuildingForm = () => {
+
   const [buildings, setBuildings] = useState([]);
   const [selectedIds, setSelectedIds] = useState({ id1: "", id2: "" });
 
-  const [route, setRoute] = useState([]);
+  const [route, setRoute] = useState("");
   const [routeFlag, setRouteFlag] = useState(false);
-
+  const [zoomLevel, setZoomLevel] = useState(1);
   // Function to fetch buildings and update state
   async function getBuildings() {
     try {
@@ -68,76 +69,46 @@ const BuildingForm = () => {
     try {
       setRouteFlag(false);
       const result = await getAcerasCercanas(selectedIds.id1, selectedIds.id2);
-      console.log(result); // Log the result
-      setRoute(result);
+      console.log('result', result); // Log the result
+      setRoute(result[0].st_assvg);
     } catch (error) {
       console.error("Error fetching aceras cercanas", error.message);
     }
   }
+  const createSVGFromRoute = (input) => {
+    const coordinates = input.match(/-?\d+\.\d+/g).map(Number);
+    const xValues = coordinates.filter((_, i) => i % 2 === 0);
+    const yValues = coordinates.filter((_, i) => i % 2 !== 0);
+    const minX = Math.min(...xValues);
+    const maxX = Math.max(...xValues);
+    const minY = Math.min(...yValues);
+    const maxY = Math.max(...yValues);
+    const width = maxX - minX;
+    const height = maxY - minY;
 
+    const viewBoxWidth = width / zoomLevel;
+    const viewBoxHeight = height / zoomLevel;
+    const viewBox = `${minX} ${minY} ${viewBoxWidth} ${viewBoxHeight}`;
 
-  function wkbToSvgPath(wkbString) {
-    // Convert WKB hex string to byte array
-    const hexToBytes = hex => {
-      const bytes = new Uint8Array(hex.length / 2);
-      for (let i = 0; i < hex.length; i += 2) {
-        bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
-      }
-      return bytes;
-    };
-
-    const byteArray = hexToBytes(wkbString);
-
-    // Parse WKB byte array to Geometry using OpenLayers
-    const format = new WKB();
-    const feature = format.readFeature(byteArray.buffer);
-    const geometry = feature.getGeometry();
-
-    // Convert Geometry to GeoJSON coordinates
-    const coordinates = geometry.getCoordinates();
-
-    // Helper function to convert coordinates to SVG path
-    const geoJSONToSVGPath = coordinates => {
-      return coordinates.map((coord, index) => {
-        const command = index === 0 ? 'M' : 'L';
-        return `${command} ${coord[0]} ${coord[1]}`;
-      }).join(' ');
-    };
-
-    // Handle different geometry types
-    let svgPath = '';
-    if (geometry.getType() === 'LineString') {
-      svgPath = geoJSONToSVGPath(coordinates);
-    } else if (geometry.getType() === 'MultiLineString') {
-      svgPath = coordinates.map(geoJSONToSVGPath).join(' ');
-    }
-
-    console.log('Generated SVG Path:', svgPath);
-    return svgPath;
+    return `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" width="500" height="500">
+        <path d="${input.replace(/\s+/g, ' ').trim()}" stroke="black" fill="none"/>
+      </svg>
+    `;
   }
 
-  // Calculate viewBox based on route coordinates
-  const getViewBox = () => {
-    if (route.length === 0) return "0 0 100 100";
+  const handleZoomIn = () => {
+    setZoomLevel((prevZoom) => Math.max(prevZoom / 1.2, 0.1));
+  };
 
-    const allCoords = route.flatMap(obj => {
-      const path = wkbToSvgPath(obj.geom);
-      return path.match(/-?\d+(\.\d+)?/g).map(Number);
-    });
-
-    const minX = Math.min(...allCoords.filter((_, i) => i % 2 === 0));
-    const minY = Math.min(...allCoords.filter((_, i) => i % 2 !== 0));
-    const maxX = Math.max(...allCoords.filter((_, i) => i % 2 === 0));
-    const maxY = Math.max(...allCoords.filter((_, i) => i % 2 !== 0));
-
-    return `${minX} ${minY} ${maxX - minX} ${maxY - minY}`;
+  const handleZoomOut = () => {
+    setZoomLevel((prevZoom) => prevZoom * 1.2);
   };
 
   useEffect(() => {
 
     if (route.length > 0) {
       setRouteFlag(true);
-
       console.log("route", route);
     }
   }, [route])
@@ -195,24 +166,16 @@ const BuildingForm = () => {
           </Col>
         </Row>
       </Form>
-      {routeFlag === true &&
-        (<div style={{ padding: '10px', border: '2px solid black', margin: '10px' }}>
-          <svg id="svg" width="60%" height="40%" viewBox="-80.0 12.0 600 400">
-            {
-              route.map((obj, index) => (
-                <g key={index}>
-                  <path
-                    d={wkbToSvgPath(obj.geom)}
-                    stroke="black"
-                    strokeWidth="2"
-                    fill="none"
-                  />
-                </g>
-              ))
-            }
-          </svg>
-        </div>)
-      }
+
+      {routeFlag && (
+        <div>
+          <div style={{ border: '2px solid black', margin: '10px', height: "500px", width: "500px" }}>
+            <div dangerouslySetInnerHTML={{ __html: createSVGFromRoute(route) }} />
+          </div>
+          <Button style={{ border: '2px solid black', margin: '10px' }} onClick={handleZoomIn}>Zoom In</Button>
+          <Button style={{ border: '2px solid black', margin: '10px' }} onClick={handleZoomOut}>Zoom Out</Button>
+        </div>
+      )}
     </Container>
   );
 };

@@ -30,7 +30,7 @@ app.use(bodyParser.json());
 
 app.get('/buildings', async (req, res) => {
   try {
-    const result = await pool.query('SELECT building_id, name FROM p2jjl.buildings ORDER BY building_id ASC');
+    const result = await pool.query('SELECT building_id, name, geom FROM p2jjl.buildings ORDER BY building_id ASC');
     res.json(result.rows);
   } catch (err) {
     console.error('Error executing query', err.stack);
@@ -52,7 +52,7 @@ app.get('/aceras-cercanas', async (req, res) => {
   }
 
   try {
-    const result = await pool.query('SELECT * FROM p2jjl.obtener_aceras_cercanas($1, $2)', [id1, id2]);
+    const result = await pool.query('select sum(distancia), ST_AsSVG(ST_SetSRID(st_union(geom),5367)) FROM p2jjl.obtener_aceras_cercanas($1, $2)', [id1, id2]);
     res.json(result.rows);
   } catch (err) {
     console.error('Error executing query', err.stack);
