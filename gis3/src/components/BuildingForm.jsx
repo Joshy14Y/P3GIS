@@ -75,27 +75,38 @@ const BuildingForm = () => {
       console.error("Error fetching aceras cercanas", error.message);
     }
   }
+
   const createSVGFromRoute = (input) => {
+    // Extract all the coordinates
     const coordinates = input.match(/-?\d+\.\d+/g).map(Number);
+
+    // Separate x and y values
     const xValues = coordinates.filter((_, i) => i % 2 === 0);
     const yValues = coordinates.filter((_, i) => i % 2 !== 0);
+
+    // Find the min and max values for x and y
     const minX = Math.min(...xValues);
     const maxX = Math.max(...xValues);
     const minY = Math.min(...yValues);
     const maxY = Math.max(...yValues);
+
+    // Calculate the width and height
     const width = maxX - minX;
     const height = maxY - minY;
 
-    const viewBoxWidth = width / zoomLevel;
-    const viewBoxHeight = height / zoomLevel;
-    const viewBox = `${minX} ${minY} ${viewBoxWidth} ${viewBoxHeight}`;
+    // Adjust the viewBox based on the zoom level
+    const viewBoxWidth = 100 + (width / zoomLevel);
+    const viewBoxHeight = 100 + (height / zoomLevel);
+    const viewBox = `${minX - 20} ${minY - 10} ${viewBoxWidth} ${viewBoxHeight}`;
 
+    // Create the SVG element
     return `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" width="500" height="500">
-        <path d="${input.replace(/\s+/g, ' ').trim()}" stroke="black" fill="none"/>
+        <path d="${input.trim()}" stroke="black" fill="none"/>
       </svg>
     `;
-  }
+  };
+
 
   const handleZoomIn = () => {
     setZoomLevel((prevZoom) => Math.max(prevZoom / 1.2, 0.1));
@@ -168,14 +179,15 @@ const BuildingForm = () => {
       </Form>
 
       {routeFlag && (
-        <div>
-          <div style={{ border: '2px solid black', margin: '10px', height: "500px", width: "500px" }}>
+        <div style={{ width: '80vw', height: '80vh', justifyContent: 'center', alignItems: 'center', padding:'10px' }} >
+          <div style={{border: '2px solid black', margin: '10px' }}>
             <div dangerouslySetInnerHTML={{ __html: createSVGFromRoute(route) }} />
           </div>
           <Button style={{ border: '2px solid black', margin: '10px' }} onClick={handleZoomIn}>Zoom In</Button>
           <Button style={{ border: '2px solid black', margin: '10px' }} onClick={handleZoomOut}>Zoom Out</Button>
         </div>
       )}
+
     </Container>
   );
 };
